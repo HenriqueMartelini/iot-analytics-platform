@@ -11,7 +11,7 @@ class AlertCreate(BaseModel):
 
     device_id: str = Field(..., description="Device ID")
     alert_type: str = Field(..., min_length=1, max_length=100, description="Alert type")
-    severity: str = Field(..., regex="^(LOW|MEDIUM|HIGH|CRITICAL)$", description="Alert severity")
+    severity: str = Field(..., pattern="^(LOW|MEDIUM|HIGH|CRITICAL)$", description="Alert severity")
     message: str = Field(..., min_length=1, max_length=500, description="Alert message")
     threshold_value: Optional[float] = Field(None, description="Threshold value")
     actual_value: Optional[float] = Field(None, description="Actual measured value")
@@ -21,7 +21,7 @@ class AlertUpdate(BaseModel):
     """Schema for updating an alert."""
 
     is_resolved: Optional[bool] = Field(None, description="Resolution status")
-    severity: Optional[str] = Field(None, regex="^(LOW|MEDIUM|HIGH|CRITICAL)$")
+    severity: Optional[str] = Field(None, pattern="^(LOW|MEDIUM|HIGH|CRITICAL)$")
 
 
 class AlertResponse(BaseModel):
