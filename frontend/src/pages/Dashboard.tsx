@@ -27,10 +27,21 @@ export const Dashboard: React.FC = () => {
   const [deviceStats, setDeviceStats] = useState({ total: 0, active: 0 });
   const [alertStats, setAlertStats] = useState({ total: 0, unresolved: 0 });
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+  const [chartData, setChartData] = useState<Array<{ timestamp: string; temperature: number; humidity: number }>>([]);
 
   useEffect(() => {
     loadData();
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (selectedDevice) {
+      loadChartData(selectedDevice.id);
+    } else if (devices.length > 0) {
+      loadChartData(devices[0].id);
+    }
+  }, [selectedDevice, devices]);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -52,6 +63,30 @@ export const Dashboard: React.FC = () => {
       console.error('Error loading data:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadChartData = async (deviceId: string) => {
+    try {
+      const [tempReadings, humidityReadings] = await Promise.all([
+        apiClient.getSensorReadings(deviceId, 'temperature', 0, 24).catch(() => []),
+        apiClient.getSensorReadings(deviceId, 'humidity', 0, 24).catch(() => []),
+      ]);
+
+      const tempMap = new Map(tempReadings.map((r: any) => [new Date(r.timestamp || r.created_at).toISOString(), r.value]));
+      const humidityMap = new Map(humidityReadings.map((r: any) => [new Date(r.timestamp || r.created_at).toISOString(), r.value]));
+
+      const allTimestamps = Array.from(new Set([...tempMap.keys(), ...humidityMap.keys()])).sort();
+      const data = allTimestamps.slice(-6).map(ts => ({
+        timestamp: new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        temperature: tempMap.get(ts) || 0,
+        humidity: humidityMap.get(ts) || 0,
+      }));
+
+      setChartData(data.length > 0 ? data : []);
+    } catch (err) {
+      console.error('Error loading chart data:', err);
+      setChartData([]);
     }
   };
 
@@ -93,14 +128,8 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  // Mock data for charts
-  const mockChartData = [
-    { timestamp: '00:00', temperature: 22, humidity: 45 },
-    { timestamp: '04:00', temperature: 20, humidity: 50 },
-    { timestamp: '08:00', temperature: 24, humidity: 48 },
-    { timestamp: '12:00', temperature: 26, humidity: 42 },
-    { timestamp: '16:00', temperature: 25, humidity: 46 },
-    { timestamp: '20:00', temperature: 23, humidity: 52 },
+  const displayChartData = chartData.length > 0 ? chartData : [
+    { timestamp: 'No data', temperature: 0, humidity: 0 },
   ];
 
   return (
@@ -149,14 +178,14 @@ export const Dashboard: React.FC = () => {
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <Chart
-            data={mockChartData}
+            data={displayChartData}
             type="line"
             dataKey="temperature"
             title="Temperature Trend"
             xAxisKey="timestamp"
           />
           <Chart
-            data={mockChartData}
+            data={displayChartData}
             type="bar"
             dataKey="humidity"
             title="Humidity Levels"

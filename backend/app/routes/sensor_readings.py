@@ -40,7 +40,11 @@ def list_readings(
                 db, device_id, skip, limit, sensor_type
             )
         else:
-            readings = []
+            from sqlalchemy import desc
+            query = db.query(SensorReading)
+            if sensor_type:
+                query = query.filter(SensorReading.sensor_type == sensor_type)
+            readings = query.order_by(desc(SensorReading.timestamp)).offset(skip).limit(limit).all()
         return readings
     except Exception as e:
         logger.error(f"Error listing sensor readings: {str(e)}")
